@@ -1,0 +1,2127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>迷宫大冒险</title>
+<meta name="description" content="儿童益智迷宫游戏 — 和小动物一起探险">
+<!-- Supabase SDK -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- Google Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@700;800&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ========================================
+   0. Supabase Config
+   ======================================== */
+/* ⚠️ 替换为你的 Supabase 项目 URL 和 anon key */
+/* 在 Supabase 项目 Settings > API 中获取 */
+
+/* ========================================
+   1. CSS Variables / Design Tokens
+   ======================================== */
+:root {
+  --color-primary: #FF8C42;
+  --color-primary-light: #FFA26B;
+  --color-primary-lighter: #FFBB8E;
+  --color-primary-dark: #E67530;
+  --color-primary-darker: #CC5F1F;
+  --color-secondary: #5BB8F5;
+  --color-secondary-light: #7CCAF7;
+  --color-secondary-lighter: #9ED9FA;
+  --color-secondary-dark: #3A9FE0;
+  --color-text-primary: #3D3029;
+  --color-text-secondary: #6B5D52;
+  --color-text-muted: #9E8E82;
+  --color-border: #D4C8BF;
+  --color-surface-muted: #F5EDE6;
+  --color-surface: #FFFBF7;
+  --color-white: #FFFFFF;
+  --color-success: #7BC67E;
+  --color-success-light: #A8DCAA;
+  --color-warning: #FFD166;
+  --color-warning-light: #FFE5A0;
+  --color-error: #F28B82;
+  --color-error-light: #F8C4BF;
+  --color-info: #5BB8F5;
+  --gradient-warm: linear-gradient(135deg, #FF8C42 0%, #FFB347 100%);
+  --gradient-sky: linear-gradient(180deg, #9ED9FA 0%, #5BB8F5 100%);
+  --gradient-sunset: linear-gradient(135deg, #FF8C42 0%, #FFD166 100%);
+  --gradient-meadow: linear-gradient(180deg, #B8E6B0 0%, #7BC67E 100%);
+  --gradient-candy: linear-gradient(135deg, #FFB3D9 0%, #FF8C42 50%, #FFD166 100%);
+  --gradient-bg: linear-gradient(180deg, #FFFBF7 0%, #FFF0E0 100%);
+  --font-family-primary: 'Nunito', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  --font-family-display: 'Baloo 2', 'Nunito', 'PingFang SC', sans-serif;
+  --space-2xs: 4px; --space-xs: 8px; --space-sm: 12px; --space-md: 16px;
+  --space-lg: 20px; --space-xl: 28px; --space-2xl: 36px; --space-3xl: 48px;
+  --radius-sm: 12px; --radius-md: 16px; --radius-lg: 20px; --radius-xl: 24px;
+  --radius-2xl: 28px; --radius-full: 9999px;
+  --shadow-sm: 0 2px 8px rgba(61, 48, 41, 0.06);
+  --shadow-md: 0 4px 16px rgba(61, 48, 41, 0.08);
+  --shadow-lg: 0 8px 32px rgba(61, 48, 41, 0.12);
+  --shadow-xl: 0 16px 48px rgba(61, 48, 41, 0.16);
+  --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-jelly: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  --ease-gentle: cubic-bezier(0.25, 0.1, 0.25, 1);
+  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* ========================================
+   2. Base / Reset
+   ======================================== */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: var(--font-family-primary);
+  color: var(--color-text-primary);
+  background: #E8DFD6;
+  -webkit-font-smoothing: antialiased;
+  touch-action: manipulation;
+}
+
+/* ========================================
+   3. App Shell & Screen System
+   ======================================== */
+#app {
+  width: 100%;
+  height: 100%;
+  max-width: 430px;
+  margin: 0 auto;
+  position: relative;
+  overflow: hidden;
+  background: var(--gradient-bg);
+  box-shadow: 0 0 40px rgba(61, 48, 41, 0.15);
+}
+
+.screen {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.35s var(--ease-gentle), visibility 0.35s;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.screen.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* ========================================
+   4. Login Screen
+   ======================================== */
+#login-screen {
+  justify-content: center;
+  align-items: center;
+  background: var(--gradient-bg);
+  gap: var(--space-lg);
+  padding: var(--space-2xl);
+  text-align: center;
+}
+
+.login-logo {
+  width: 90px;
+  height: 90px;
+  background: var(--gradient-warm);
+  border-radius: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-lg), 0 5px 0 var(--color-primary-dark);
+  margin-bottom: var(--space-xs);
+}
+
+.login-logo svg {
+  width: 46px;
+  height: 46px;
+}
+
+.login-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.login-input-group {
+  width: 100%;
+  text-align: left;
+}
+
+.login-label {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-2xs);
+  padding-left: var(--space-2xs);
+}
+
+.login-label span {
+  color: var(--color-text-muted);
+  font-weight: 400;
+  font-size: 13px;
+}
+
+.login-input {
+  width: 100%;
+  height: 60px;
+  border: 2.5px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 0 var(--space-lg);
+  font-size: 18px;
+  font-family: var(--font-family-primary);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  background: var(--color-white);
+  outline: none;
+  transition: border-color 0.2s;
+  box-shadow: var(--shadow-sm);
+}
+.login-input:focus {
+  border-color: var(--color-primary);
+}
+.login-input::placeholder {
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+.login-error {
+  color: var(--color-error);
+  font-size: 15px;
+  font-weight: 600;
+  min-height: 24px;
+  line-height: 24px;
+}
+
+.login-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  margin-top: var(--space-xs);
+}
+
+.login-toggle {
+  font-size: 15px;
+  color: var(--color-text-muted);
+  margin-top: var(--space-sm);
+}
+.login-toggle button {
+  background: none;
+  border: none;
+  color: var(--color-secondary);
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  font-family: var(--font-family-primary);
+  text-decoration: underline;
+}
+
+/* ========================================
+   5. Splash Screen
+   ======================================== */
+#splash {
+  justify-content: center;
+  align-items: center;
+  background: var(--gradient-bg);
+  gap: var(--space-lg);
+  padding: var(--space-2xl);
+  text-align: center;
+}
+
+.splash-logo {
+  width: 110px;
+  height: 110px;
+  background: var(--gradient-warm);
+  border-radius: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-lg), 0 6px 0 var(--color-primary-dark);
+  animation: logoFloat 2.5s var(--ease-gentle) infinite alternate;
+}
+
+.splash-logo svg {
+  width: 56px;
+  height: 56px;
+}
+
+@keyframes logoFloat {
+  0% { transform: translateY(0) rotate(0deg); }
+  100% { transform: translateY(-10px) rotate(2deg); }
+}
+
+.splash-mascots {
+  display: flex;
+  gap: 12px;
+  font-size: 40px;
+}
+
+.splash-mascots span {
+  display: inline-block;
+  animation: mascotWiggle 1.2s var(--ease-bounce) 3 alternate;
+}
+.splash-mascots span:nth-child(2) { animation-delay: 0.15s; }
+.splash-mascots span:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes mascotWiggle {
+  0% { transform: translateY(0) scale(1); }
+  100% { transform: translateY(-6px) scale(1.1); }
+}
+
+.splash-title {
+  font-family: var(--font-family-display);
+  font-size: 38px;
+  font-weight: 800;
+  color: var(--color-text-primary);
+  line-height: 1.15;
+}
+
+.splash-subtitle {
+  font-size: 17px;
+  color: var(--color-text-muted);
+  margin-top: calc(-1 * var(--space-sm));
+}
+
+.splash-user-badge {
+  font-size: 15px;
+  color: var(--color-text-muted);
+  margin-top: var(--space-xs);
+}
+
+.splash-user-badge strong {
+  color: var(--color-primary);
+}
+
+.splash-logout-btn {
+  display: inline-block;
+  margin-top: var(--space-sm);
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 14px;
+  font-family: var(--font-family-primary);
+  cursor: pointer;
+  text-decoration: underline;
+  padding: var(--space-xs);
+}
+
+/* ========================================
+   6. Home Screen
+   ======================================== */
+#home {
+  padding: var(--space-xl) var(--space-md) var(--space-3xl);
+  background: var(--gradient-bg);
+  gap: var(--space-xl);
+}
+
+.home-header {
+  text-align: center;
+  padding: var(--space-sm) 0;
+}
+
+.home-title {
+  font-family: var(--font-family-display);
+  font-size: 30px;
+  font-weight: 800;
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-2xs);
+}
+
+.home-subtitle {
+  font-size: 15px;
+  color: var(--color-text-muted);
+}
+
+.home-user-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: var(--space-xs) var(--space-md);
+  background: rgba(255,255,255,0.6);
+  border-radius: var(--radius-full);
+  margin: 0 auto;
+  width: fit-content;
+}
+
+.home-user-avatar {
+  width: 32px;
+  height: 32px;
+  background: var(--gradient-warm);
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  color: white;
+  font-weight: 700;
+}
+
+.home-user-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.home-logout-small {
+  background: none;
+  border: none;
+  color: var(--color-text-muted);
+  font-size: 13px;
+  cursor: pointer;
+  font-family: var(--font-family-primary);
+}
+
+.difficulty-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.difficulty-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-lg);
+  border-radius: var(--radius-xl);
+  background: var(--color-white);
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  transition: transform 0.2s var(--ease-spring), box-shadow 0.2s;
+  min-height: 88px;
+  border: 2.5px solid transparent;
+}
+.difficulty-card:active {
+  transform: scale(0.97);
+  box-shadow: var(--shadow-sm);
+}
+
+.difficulty-card[data-diff="easy"] {
+  border-color: #C8E6C9;
+  background: linear-gradient(135deg, #F1F8E9 0%, #FFFFFF 100%);
+}
+.difficulty-card[data-diff="medium"] {
+  border-color: #FFF9C4;
+  background: linear-gradient(135deg, #FFFDE7 0%, #FFFFFF 100%);
+}
+.difficulty-card[data-diff="hard"] {
+  border-color: #FFE0B2;
+  background: linear-gradient(135deg, #FFF3E0 0%, #FFFFFF 100%);
+}
+
+.difficulty-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  flex-shrink: 0;
+}
+
+.difficulty-card[data-diff="easy"] .difficulty-icon {
+  background: linear-gradient(145deg, #A8DCAA, #7BC67E);
+  box-shadow: 0 3px 0 #5EA361;
+}
+.difficulty-card[data-diff="medium"] .difficulty-icon {
+  background: linear-gradient(145deg, #FFE5A0, #FFD166);
+  box-shadow: 0 3px 0 #E6B84D;
+}
+.difficulty-card[data-diff="hard"] .difficulty-icon {
+  background: linear-gradient(145deg, #FFB87A, #FF8C42);
+  box-shadow: 0 3px 0 #E67530;
+}
+
+.difficulty-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.difficulty-name {
+  font-family: var(--font-family-display);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin-bottom: 2px;
+}
+
+.difficulty-desc {
+  font-size: 16px;
+  color: var(--color-text-muted);
+}
+
+.difficulty-arrow {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+}
+
+.home-overview {
+  background: var(--color-white);
+  border-radius: var(--radius-xl);
+  padding: var(--space-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.overview-title {
+  font-family: var(--font-family-display);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-md);
+  text-align: center;
+}
+
+.overview-stats {
+  display: flex;
+  justify-content: space-around;
+  text-align: center;
+}
+
+.overview-stat-value {
+  font-family: var(--font-family-display);
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--color-primary);
+  display: block;
+}
+
+.overview-stat-label {
+  font-size: 15px;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+}
+
+/* ========================================
+   7. Level Select Screen
+   ======================================== */
+#level-select {
+  padding: var(--space-md);
+  gap: var(--space-md);
+  background: var(--gradient-bg);
+}
+
+.level-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-xs) 0;
+  flex-shrink: 0;
+}
+
+.back-btn {
+  width: 60px;
+  height: 60px;
+  border-radius: var(--radius-full);
+  background: rgba(255,255,255,0.8);
+  border: 2px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.15s var(--ease-spring);
+  flex-shrink: 0;
+}
+.back-btn:active {
+  transform: scale(0.88);
+}
+.back-btn svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: var(--color-text-primary);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.level-header-title {
+  font-family: var(--font-family-display);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  flex: 1;
+}
+
+.level-header-mascot {
+  font-size: 36px;
+}
+
+.level-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-sm);
+  padding-bottom: var(--space-xl);
+}
+
+.level-card {
+  aspect-ratio: 1;
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.2s var(--ease-spring);
+  box-shadow: var(--shadow-sm), 0 3px 0 rgba(0,0,0,0.06);
+  position: relative;
+  overflow: hidden;
+  min-height: 100px;
+}
+.level-card:active {
+  transform: scale(0.92);
+  box-shadow: var(--shadow-sm);
+}
+
+.level-card .level-number {
+  font-family: var(--font-family-display);
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.level-card .level-clears {
+  font-size: 14px;
+  margin-top: 4px;
+  opacity: 0.75;
+  font-weight: 700;
+}
+
+.level-card .level-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  border-radius: var(--radius-full);
+  padding: 1px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: white;
+}
+
+.level-card .level-target {
+  font-size: 22px;
+  position: absolute;
+  bottom: 6px;
+  right: 8px;
+  opacity: 0.4;
+}
+
+/* ========================================
+   8. Game Play Screen
+   ======================================== */
+#game {
+  background: linear-gradient(180deg, var(--color-surface) 0%, #FFF5EB 100%);
+  padding: var(--space-xs) var(--space-sm) var(--space-sm);
+  gap: var(--space-xs);
+  overflow: hidden;
+}
+
+.game-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2xs) var(--space-xs);
+  flex-shrink: 0;
+}
+
+.game-level-info {
+  font-family: var(--font-family-display);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+  flex: 1;
+  text-align: center;
+}
+
+.game-mascot {
+  font-size: 28px;
+  flex-shrink: 0;
+}
+
+.game-reset-btn {
+  width: 60px;
+  height: 60px;
+  border-radius: var(--radius-full);
+  background: var(--color-white);
+  border: 2px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.15s var(--ease-spring), background 0.15s;
+  font-size: 22px;
+  color: var(--color-text-secondary);
+  flex-shrink: 0;
+}
+.game-reset-btn:active {
+  transform: scale(0.88);
+  background: var(--color-surface-muted);
+}
+
+.game-hint {
+  text-align: center;
+  font-size: 16px;
+  color: var(--color-text-muted);
+  padding: var(--space-2xs) 0;
+  flex-shrink: 0;
+}
+
+.game-canvas-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  padding: var(--space-2xs);
+}
+
+#mazeCanvas {
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  touch-action: none;
+}
+
+/* ========================================
+   9. Victory Screen
+   ======================================== */
+#victory {
+  justify-content: center;
+  align-items: center;
+  background: var(--gradient-bg);
+  gap: var(--space-lg);
+  position: relative;
+  padding: var(--space-2xl);
+}
+
+.victory-mascot {
+  font-size: 80px;
+  animation: victoryBounce 0.6s var(--ease-bounce) forwards;
+}
+
+@keyframes victoryBounce {
+  0% { transform: scale(0.3) rotate(-15deg); opacity: 0; }
+  60% { transform: scale(1.3) rotate(5deg); }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+.victory-text {
+  font-family: var(--font-family-display);
+  font-size: 42px;
+  font-weight: 800;
+  color: var(--color-primary);
+  animation: victoryTextPop 0.5s var(--ease-bounce) 0.3s both;
+}
+
+@keyframes victoryTextPop {
+  0% { transform: scale(0) rotate(-10deg); opacity: 0; }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+.victory-clears {
+  font-size: 17px;
+  color: var(--color-text-secondary);
+  animation: victoryTextPop 0.5s var(--ease-bounce) 0.5s both;
+}
+
+.victory-clears span {
+  font-family: var(--font-family-display);
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--color-primary);
+}
+
+.victory-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+  width: 85%;
+  max-width: 300px;
+  animation: victoryTextPop 0.5s var(--ease-bounce) 0.7s both;
+}
+
+#confettiCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* ========================================
+   10. Buttons
+   ======================================== */
+.btn-primary {
+  width: 100%;
+  height: 60px;
+  border: none;
+  border-radius: var(--radius-xl);
+  background: var(--gradient-warm);
+  color: var(--color-white);
+  font-family: var(--font-family-display);
+  font-size: 22px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 0 var(--color-primary-dark);
+  transition: transform 0.1s, box-shadow 0.1s;
+  position: relative;
+  top: 0;
+  letter-spacing: 0.5px;
+}
+.btn-primary:active {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 var(--color-primary-dark);
+}
+
+.btn-secondary {
+  width: 100%;
+  height: 56px;
+  border: none;
+  border-radius: var(--radius-lg);
+  background: var(--gradient-sky);
+  color: var(--color-white);
+  font-family: var(--font-family-display);
+  font-size: 20px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 3px 0 var(--color-secondary-dark);
+  transition: transform 0.1s, box-shadow 0.1s;
+  position: relative;
+  top: 0;
+}
+.btn-secondary:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 var(--color-secondary-dark);
+}
+
+.btn-ghost {
+  width: 100%;
+  height: 60px;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-white);
+  color: var(--color-text-secondary);
+  font-family: var(--font-family-primary);
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.1s, background 0.15s;
+}
+.btn-ghost:active {
+  transform: scale(0.97);
+  background: var(--color-surface-muted);
+}
+
+.btn-loading {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* ========================================
+   11. Loading Spinner
+   ======================================== */
+.spinner {
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+  border: 3px solid rgba(255,255,255,0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  vertical-align: middle;
+  margin-right: 8px;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ========================================
+   12. Utilities
+   ======================================== */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0,0,0,0);
+}
+
+@media print {
+  body { background: white; }
+  #app { box-shadow: none; max-width: 100%; }
+  .screen { page-break-after: always; }
+  .screen:last-child { page-break-after: auto; }
+  .btn-primary, .btn-secondary, .btn-ghost,
+  .game-reset-btn, .back-btn { display: none; }
+  #confettiCanvas { display: none; }
+  .screen { opacity: 1 !important; visibility: visible !important; position: relative !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ========================================
+       Screen 0: Login / Register
+       ======================================== -->
+  <section id="login-screen" class="screen active" role="main" aria-label="登录">
+    <div class="login-logo">
+      <svg viewBox="0 0 64 64" fill="none">
+        <rect x="8" y="8" width="48" height="48" rx="10" stroke="white" stroke-width="3.5"/>
+        <path d="M8 24h16v8H24v12h16V24h-8v-8h20" stroke="white" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="48" cy="48" r="4.5" fill="white"/>
+      </svg>
+    </div>
+    <h2 style="font-family:var(--font-family-display);font-size:30px;font-weight:800;margin-bottom:-12px;">迷宫大冒险</h2>
+    <p style="font-size:15px;color:var(--color-text-muted);margin-bottom:var(--space-sm);">输入昵称，开始你的探险</p>
+
+    <div class="login-form">
+      <div class="login-input-group">
+        <label class="login-label" for="loginUsername">昵称</label>
+        <input class="login-input" type="text" id="loginUsername" placeholder="起一个好记的昵称" maxlength="20" autocomplete="username">
+      </div>
+      <div class="login-input-group">
+        <label class="login-label" for="loginPassword">密码 <span>（6位以上）</span></label>
+        <input class="login-input" type="password" id="loginPassword" placeholder="设置密码" minlength="6" maxlength="32" autocomplete="current-password">
+      </div>
+      <div class="login-error" id="loginError"></div>
+      <div class="login-buttons">
+        <button class="btn-primary" id="btnLogin" onclick="handleLogin()">开始冒险</button>
+        <div class="login-toggle">
+          还没有账号？<button id="btnToggleMode" onclick="toggleLoginMode()">注册新账号</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================
+       Screen 1: Splash
+       ======================================== -->
+  <section id="splash" class="screen" role="main" aria-label="启动页">
+    <div class="splash-logo">
+      <svg viewBox="0 0 64 64" fill="none">
+        <rect x="8" y="8" width="48" height="48" rx="10" stroke="white" stroke-width="3.5"/>
+        <path d="M8 24h16v8H24v12h16V24h-8v-8h20" stroke="white" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="48" cy="48" r="4.5" fill="white"/>
+      </svg>
+    </div>
+    <div class="splash-mascots" aria-hidden="true">
+      <span>🐰</span><span>🐒</span><span>🐱</span>
+    </div>
+    <h1 class="splash-title">迷宫大冒险</h1>
+    <p class="splash-subtitle">和小动物一起找食物吧</p>
+    <p class="splash-user-badge">欢迎回来，<strong id="splashUserName">冒险家</strong>！</p>
+    <button class="btn-primary" onclick="showScreen('home')" style="width:220px;margin-top:var(--space-md)">
+      开始冒险
+    </button>
+    <button class="splash-logout-btn" onclick="logout()">换一个账号</button>
+  </section>
+
+  <!-- ========================================
+       Screen 2: Home
+       ======================================== -->
+  <section id="home" class="screen" role="main" aria-label="主页">
+    <header class="home-header">
+      <h1 class="home-title">迷宫大冒险</h1>
+      <p class="home-subtitle">选择难度，开始探索</p>
+    </header>
+
+    <div class="home-user-bar">
+      <div class="home-user-avatar" id="homeUserInitial">冒</div>
+      <span class="home-user-name" id="homeUserName">冒险家</span>
+      <button class="home-logout-small" onclick="logout()">退出</button>
+    </div>
+
+    <div class="difficulty-cards">
+      <div class="difficulty-card" data-diff="easy" onclick="selectDifficulty('easy')" role="button" tabindex="0" aria-label="简单难度 小兔找萝卜">
+        <div class="difficulty-icon">🐰</div>
+        <div class="difficulty-info">
+          <div class="difficulty-name">小兔找萝卜</div>
+          <div class="difficulty-desc">简单 · 5~7格</div>
+        </div>
+        <div class="difficulty-arrow">
+          <svg width="20" height="20" viewBox="0 0 20 20"><path d="M7 4l6 6-6 6" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+
+      <div class="difficulty-card" data-diff="medium" onclick="selectDifficulty('medium')" role="button" tabindex="0" aria-label="中等难度 小猴找香蕉">
+        <div class="difficulty-icon">🐒</div>
+        <div class="difficulty-info">
+          <div class="difficulty-name">小猴找香蕉</div>
+          <div class="difficulty-desc">中等 · 8~10格</div>
+        </div>
+        <div class="difficulty-arrow">
+          <svg width="20" height="20" viewBox="0 0 20 20"><path d="M7 4l6 6-6 6" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+
+      <div class="difficulty-card" data-diff="hard" onclick="selectDifficulty('hard')" role="button" tabindex="0" aria-label="困难难度 小猫找鱼干">
+        <div class="difficulty-icon">🐱</div>
+        <div class="difficulty-info">
+          <div class="difficulty-name">小猫找鱼干</div>
+          <div class="difficulty-desc">困难 · 11~13格</div>
+        </div>
+        <div class="difficulty-arrow">
+          <svg width="20" height="20" viewBox="0 0 20 20"><path d="M7 4l6 6-6 6" stroke="currentColor" stroke-width="2.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+    </div>
+
+    <div class="home-overview">
+      <div class="overview-title" id="overviewTitle">冒险记录</div>
+      <div class="overview-stats">
+        <div class="overview-stat">
+          <span class="overview-stat-value" id="totalClears">—</span>
+          <span class="overview-stat-label">总通关</span>
+        </div>
+        <div class="overview-stat">
+          <span class="overview-stat-value">15</span>
+          <span class="overview-stat-label">关卡</span>
+        </div>
+        <div class="overview-stat">
+          <span class="overview-stat-value" id="clearedLevels">—</span>
+          <span class="overview-stat-label">已通关</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========================================
+       Screen 3: Level Select
+       ======================================== -->
+  <section id="level-select" class="screen" role="main" aria-label="关卡选择">
+    <div class="level-header">
+      <button class="back-btn" onclick="showScreen('home')" aria-label="返回主页">
+        <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <div class="level-header-title" id="levelHeaderTitle">小兔找萝卜</div>
+      <div class="level-header-mascot" id="levelHeaderMascot">🐰</div>
+    </div>
+    <div class="level-grid" id="levelGrid"></div>
+  </section>
+
+  <!-- ========================================
+       Screen 4: Game Play
+       ======================================== -->
+  <section id="game" class="screen" role="main" aria-label="游戏">
+    <div class="game-top-bar">
+      <button class="back-btn" onclick="showScreen('level-select')" aria-label="返回关卡选择">
+        <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <div class="game-level-info" id="gameLevelInfo">第 1 关</div>
+      <div class="game-mascot" id="gameMascot">🐰</div>
+      <button class="game-reset-btn" onclick="resetMaze()" aria-label="重置">↺</button>
+    </div>
+    <div class="game-hint" id="gameHint">从 🐰 划到 🥕 就能通关</div>
+    <div class="game-canvas-wrap">
+      <canvas id="mazeCanvas" aria-label="迷宫游戏画布"></canvas>
+    </div>
+  </section>
+
+  <!-- ========================================
+       Screen 5: Victory
+       ======================================== -->
+  <section id="victory" class="screen" role="main" aria-label="通关庆祝">
+    <canvas id="confettiCanvas"></canvas>
+    <div class="victory-mascot" id="victoryMascot">🐰</div>
+    <div class="victory-text">太棒了!</div>
+    <div class="victory-clears">已通关 <span id="victoryClears">1</span> 次</div>
+    <div class="victory-buttons">
+      <button class="btn-primary" id="btnNextLevel" onclick="nextLevel()">下一关</button>
+      <button class="btn-secondary" onclick="replayLevel()">再玩一次</button>
+      <button class="btn-ghost" onclick="showScreen('level-select')">选择关卡</button>
+    </div>
+  </section>
+
+</div>
+
+<script>
+/* ========================================
+   ⚠️ SUPABASE CONFIG — 替换为你的项目信息
+   在 Supabase 项目 Settings > API 中获取
+   ======================================== */
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';       // 例如 https://xxxxx.supabase.co
+const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY';  // anon/public key
+
+let supabase = null;
+
+function initSupabase() {
+  if (SUPABASE_URL === 'YOUR_SUPABASE_URL') {
+    console.warn('[迷宫大冒险] Supabase 未配置。请在 index.html 中填入 SUPABASE_URL 和 SUPABASE_KEY。');
+    console.warn('[迷宫大冒险] 当前回退到本地模式（进度仅保存在本设备）。');
+    return false;
+  }
+  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  return true;
+}
+
+/* ========================================
+   App State
+   ======================================== */
+const state = {
+  currentUser: null,       // { id, username }
+  loginMode: 'login',      // 'login' | 'register'
+  currentDifficulty: 'easy',
+  currentLevel: 1,
+  maze: null,
+  cellPath: [],
+  isDrawing: false,
+  cleared: false,
+  clearsCache: {},         // localStorage fallback cache
+  gridSizes: {
+    easy:   [5, 5, 6, 6, 7],
+    medium: [8, 8, 9, 9, 10],
+    hard:   [11, 11, 12, 12, 13]
+  },
+  themeConfig: {
+    easy: {
+      character: '🐰', target: '🥕', name: '小兔找萝卜',
+      primary: '#7BC67E', primaryLight: '#A8DCAA', primaryDark: '#5EA361',
+      accent: '#FF8C42', accentLight: '#FFB87A',
+      wall: '#81C784', path: '#E8F5E9', pathFill: '#F1F8E9',
+      bgStart: '#E8F5E9', bgEnd: '#FFF8E1',
+      trailColors: ['#FF8C42', '#FFA26B', '#FFB87A']
+    },
+    medium: {
+      character: '🐒', target: '🍌', name: '小猴找香蕉',
+      primary: '#FFD166', primaryLight: '#FFE5A0', primaryDark: '#E6B84D',
+      accent: '#7BC67E', accentLight: '#A8DCAA',
+      wall: '#AED581', path: '#FFFDE7', pathFill: '#FFF8E1',
+      bgStart: '#FFF8E1', bgEnd: '#E8F5E9',
+      trailColors: ['#7BC67E', '#8FD692', '#A8DCAA']
+    },
+    hard: {
+      character: '🐱', target: '🐟', name: '小猫找鱼干',
+      primary: '#FF8C42', primaryLight: '#FFB87A', primaryDark: '#E67530',
+      accent: '#5BB8F5', accentLight: '#9ED9FA',
+      wall: '#FFAB91', path: '#FFF3E0', pathFill: '#FFE0B2',
+      bgStart: '#FFE0B2', bgEnd: '#E1F5FE',
+      trailColors: ['#5BB8F5', '#7CCAF7', '#9ED9FA']
+    }
+  }
+};
+
+/* ========================================
+   Auth — Password Hashing (SHA-256)
+   ======================================== */
+async function hashPassword(password) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(password + 'maze_salt_2024');
+  const hash = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(hash))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
+/* ========================================
+   Auth — Login / Register / Logout
+   ======================================== */
+let authInProgress = false;
+
+async function handleLogin() {
+  if (authInProgress) return;
+  const username = document.getElementById('loginUsername').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const errorEl = document.getElementById('loginError');
+
+  errorEl.textContent = '';
+
+  if (!username) { errorEl.textContent = '请输入昵称'; return; }
+  if (username.length < 1 || username.length > 20) { errorEl.textContent = '昵称长度 1-20 字'; return; }
+  if (password.length < 6) { errorEl.textContent = '密码至少 6 位'; return; }
+
+  authInProgress = true;
+  setBtnLoading('btnLogin', true);
+
+  try {
+    if (!supabase) {
+      // Fallback: 本地模式
+      localAuth(username, password);
+      return;
+    }
+
+    const pwHash = await hashPassword(password);
+
+    if (state.loginMode === 'register') {
+      // 检查昵称是否已存在
+      const { data: existing } = await supabase
+        .from('users')
+        .select('id')
+        .eq('username', username)
+        .maybeSingle();
+
+      if (existing) {
+        errorEl.textContent = '这个昵称已经被使用了，换一个吧';
+        authInProgress = false;
+        setBtnLoading('btnLogin', false);
+        return;
+      }
+
+      const { data: newUser, error } = await supabase
+        .from('users')
+        .insert({ username, password_hash: pwHash })
+        .select('id, username')
+        .single();
+
+      if (error) {
+        errorEl.textContent = '注册失败，请稍后再试';
+        authInProgress = false;
+        setBtnLoading('btnLogin', false);
+        return;
+      }
+
+      setCurrentUser(newUser);
+    } else {
+      // 登录
+      const { data: user, error } = await supabase
+        .from('users')
+        .select('id, username')
+        .eq('username', username)
+        .eq('password_hash', pwHash)
+        .maybeSingle();
+
+      if (!user) {
+        errorEl.textContent = '昵称或密码不对哦，再试试';
+        authInProgress = false;
+        setBtnLoading('btnLogin', false);
+        return;
+      }
+
+      setCurrentUser(user);
+    }
+  } catch (e) {
+    console.error('Auth error:', e);
+    errorEl.textContent = '网络出错了，请检查连接';
+    authInProgress = false;
+    setBtnLoading('btnLogin', false);
+  }
+}
+
+function localAuth(username, password) {
+  // 本地模式：存 localStorage
+  const pwHash = username + '_' + password.length + '_local';
+  const localUsers = JSON.parse(localStorage.getItem('maze_local_users') || '{}');
+
+  if (state.loginMode === 'register') {
+    if (localUsers[username]) {
+      document.getElementById('loginError').textContent = '这个昵称已经被使用了';
+      authInProgress = false;
+      setBtnLoading('btnLogin', false);
+      return;
+    }
+    localUsers[username] = { password: pwHash };
+    localStorage.setItem('maze_local_users', JSON.stringify(localUsers));
+  } else {
+    const u = localUsers[username];
+    if (!u || u.password !== pwHash) {
+      document.getElementById('loginError').textContent = '昵称或密码不对哦';
+      authInProgress = false;
+      setBtnLoading('btnLogin', false);
+      return;
+    }
+  }
+
+  setCurrentUser({ id: 'local_' + username, username, local: true });
+}
+
+function setCurrentUser(user) {
+  state.currentUser = user;
+  localStorage.setItem('maze_current_user', JSON.stringify(user));
+
+  // 更新 UI
+  document.getElementById('splashUserName').textContent = user.username;
+  document.getElementById('homeUserName').textContent = user.username;
+  document.getElementById('homeUserInitial').textContent = user.username.charAt(0);
+
+  authInProgress = false;
+  setBtnLoading('btnLogin', false);
+
+  // 清空表单
+  document.getElementById('loginUsername').value = '';
+  document.getElementById('loginPassword').value = '';
+
+  showScreen('splash');
+}
+
+function logout() {
+  state.currentUser = null;
+  state.clearsCache = {};
+  localStorage.removeItem('maze_current_user');
+  document.getElementById('loginUsername').value = '';
+  document.getElementById('loginPassword').value = '';
+  showScreen('login-screen');
+}
+
+function toggleLoginMode() {
+  state.loginMode = state.loginMode === 'login' ? 'register' : 'login';
+  const btn = document.getElementById('btnLogin');
+  const toggleBtn = document.getElementById('btnToggleMode');
+
+  if (state.loginMode === 'register') {
+    btn.textContent = '注册并开始';
+    toggleBtn.textContent = '已有账号？去登录';
+  } else {
+    btn.textContent = '开始冒险';
+    toggleBtn.textContent = '还没有账号？注册新账号';
+  }
+  document.getElementById('loginError').textContent = '';
+}
+
+function setBtnLoading(id, loading) {
+  const btn = document.getElementById(id);
+  if (loading) {
+    btn.classList.add('btn-loading');
+    btn.innerHTML = '<span class="spinner"></span>' + btn.textContent;
+  } else {
+    btn.classList.remove('btn-loading');
+    if (state.loginMode === 'register') {
+      btn.textContent = '注册并开始';
+    } else {
+      btn.textContent = '开始冒险';
+    }
+  }
+}
+
+/* ========================================
+   Data Layer — Supabase / localStorage fallback
+   ======================================== */
+function storageKey(diff, level) {
+  return `maze_${diff}_${level}_clears`;
+}
+
+function userPrefix() {
+  if (!state.currentUser) return '';
+  return state.currentUser.local ? `local_${state.currentUser.username}_` : '';
+}
+
+async function getClears(diff, level) {
+  if (!state.currentUser) return 0;
+
+  // Cache check first
+  const cacheKey = `${diff}_${level}`;
+  if (state.clearsCache[cacheKey] !== undefined) return state.clearsCache[cacheKey];
+
+  if (!supabase || state.currentUser.local) {
+    // localStorage fallback
+    const key = userPrefix() + storageKey(diff, level);
+    const val = parseInt(localStorage.getItem(key) || '0', 10);
+    state.clearsCache[cacheKey] = val;
+    return val;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('progress')
+      .select('clear_count')
+      .eq('user_id', state.currentUser.id)
+      .eq('difficulty', diff)
+      .eq('level', level)
+      .maybeSingle();
+
+    const val = data ? data.clear_count : 0;
+    state.clearsCache[cacheKey] = val;
+    return val;
+  } catch (e) {
+    console.error('getClears error:', e);
+    return 0;
+  }
+}
+
+async function addClear(diff, level) {
+  if (!state.currentUser) return;
+
+  const cacheKey = `${diff}_${level}`;
+  const current = await getClears(diff, level);
+  const newCount = current + 1;
+  state.clearsCache[cacheKey] = newCount;
+
+  if (!supabase || state.currentUser.local) {
+    const key = userPrefix() + storageKey(diff, level);
+    localStorage.setItem(key, newCount);
+    return;
+  }
+
+  try {
+    // Upsert: try update first, then insert if not exists
+    const { data: existing } = await supabase
+      .from('progress')
+      .select('id')
+      .eq('user_id', state.currentUser.id)
+      .eq('difficulty', diff)
+      .eq('level', level)
+      .maybeSingle();
+
+    if (existing) {
+      await supabase
+        .from('progress')
+        .update({ clear_count: newCount, updated_at: new Date().toISOString() })
+        .eq('id', existing.id);
+    } else {
+      await supabase
+        .from('progress')
+        .insert({
+          user_id: state.currentUser.id,
+          difficulty: diff,
+          level: level,
+          clear_count: 1
+        });
+    }
+  } catch (e) {
+    console.error('addClear error:', e);
+  }
+}
+
+async function getAllClears() {
+  if (!state.currentUser) return {};
+
+  if (!supabase || state.currentUser.local) {
+    const result = {};
+    for (const diff of ['easy', 'medium', 'hard']) {
+      for (let i = 1; i <= 5; i++) {
+        const key = userPrefix() + storageKey(diff, i);
+        result[`${diff}_${i}`] = parseInt(localStorage.getItem(key) || '0', 10);
+      }
+    }
+    return result;
+  }
+
+  try {
+    const { data } = await supabase
+      .from('progress')
+      .select('difficulty, level, clear_count')
+      .eq('user_id', state.currentUser.id);
+
+    const result = {};
+    if (data) {
+      for (const row of data) {
+        result[`${row.difficulty}_${row.level}`] = row.clear_count;
+        state.clearsCache[`${row.difficulty}_${row.level}`] = row.clear_count;
+      }
+    }
+    return result;
+  } catch (e) {
+    console.error('getAllClears error:', e);
+    return {};
+  }
+}
+
+/* ========================================
+   Screen Navigation
+   ======================================== */
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const target = document.getElementById(id);
+  if (target) target.classList.add('active');
+  if (id === 'home') updateHomeOverview();
+  if (id === 'level-select') renderLevelCards();
+  if (id === 'game' && state.maze) {
+    requestAnimationFrame(() => initAndDrawMaze());
+  }
+  if (id === 'victory') startConfetti();
+}
+
+/* ========================================
+   Difficulty Selection
+   ======================================== */
+function selectDifficulty(diff) {
+  state.currentDifficulty = diff;
+  showScreen('level-select');
+}
+
+/* ========================================
+   Home Overview
+   ======================================== */
+async function updateHomeOverview() {
+  const totalEl = document.getElementById('totalClears');
+  const clearedEl = document.getElementById('clearedLevels');
+
+  totalEl.textContent = '—';
+  clearedEl.textContent = '—';
+
+  const all = await getAllClears();
+  let totalClears = 0;
+  let clearedLevels = 0;
+
+  for (const diff of ['easy', 'medium', 'hard']) {
+    for (let i = 1; i <= 5; i++) {
+      const c = all[`${diff}_${i}`] || 0;
+      totalClears += c;
+      if (c > 0) clearedLevels++;
+    }
+  }
+
+  totalEl.textContent = totalClears;
+  clearedEl.textContent = clearedLevels;
+}
+
+/* ========================================
+   Level Select
+   ======================================== */
+async function renderLevelCards() {
+  const diff = state.currentDifficulty;
+  const cfg = state.themeConfig[diff];
+  const grid = document.getElementById('levelGrid');
+  document.getElementById('levelHeaderTitle').textContent = cfg.name;
+  document.getElementById('levelHeaderMascot').textContent = cfg.character;
+
+  let html = '';
+  for (let i = 1; i <= 5; i++) {
+    const clears = await getClears(diff, i);
+    const bgStyle = `background: linear-gradient(145deg, ${cfg.primaryLight}33 0%, ${cfg.path} 100%); border: 2px solid ${cfg.primaryLight};`;
+    const badge = clears > 0
+      ? `<span class="level-badge" style="background:${cfg.accent}">${clears}次</span>`
+      : '';
+    html += `
+      <div class="level-card" style="${bgStyle}" onclick="startLevel(${i})" role="button" tabindex="0" aria-label="第${i}关">
+        ${badge}
+        <div class="level-number" style="color:${cfg.primaryDark}">${i}</div>
+        <div class="level-clears" style="color:${cfg.primaryDark}">${clears > 0 ? clears + '次通关' : '—'}</div>
+        <div class="level-target">${cfg.target}</div>
+      </div>
+    `;
+  }
+  grid.innerHTML = html;
+}
+
+/* ========================================
+   Maze Generation — DFS Recursive Backtracker
+   ======================================== */
+function generateMaze(cols, rows, seed) {
+  let s = seed;
+  function rand() {
+    s = (s * 16807 + 0) % 2147483647;
+    return (s - 1) / 2147483646;
+  }
+
+  const grid = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      grid.push({ r, c, visited: false, walls: [true, true, true, true] });
+    }
+  }
+
+  function getCell(r, c) {
+    if (r < 0 || r >= rows || c < 0 || c >= cols) return null;
+    return grid[r * cols + c];
+  }
+
+  function getUnvisitedNeighbors(cell) {
+    const dirs = [
+      { dr: -1, dc: 0, wi: 0, oi: 2 },
+      { dr: 0, dc: 1, wi: 1, oi: 3 },
+      { dr: 1, dc: 0, wi: 2, oi: 0 },
+      { dr: 0, dc: -1, wi: 3, oi: 1 }
+    ];
+    const result = [];
+    for (const d of dirs) {
+      const n = getCell(cell.r + d.dr, cell.c + d.dc);
+      if (n && !n.visited) result.push({ cell: n, wi: d.wi, oi: d.oi });
+    }
+    return result;
+  }
+
+  const stack = [];
+  const start = getCell(0, 0);
+  start.visited = true;
+  stack.push(start);
+
+  while (stack.length > 0) {
+    const current = stack[stack.length - 1];
+    const neighbors = getUnvisitedNeighbors(current);
+    if (neighbors.length === 0) {
+      stack.pop();
+    } else {
+      const idx = Math.floor(rand() * neighbors.length);
+      const { cell: next, wi, oi } = neighbors[idx];
+      current.walls[wi] = false;
+      next.walls[oi] = false;
+      next.visited = true;
+      stack.push(next);
+    }
+  }
+
+  return { grid, cols, rows };
+}
+
+/* ========================================
+   Start Level
+   ======================================== */
+function startLevel(level) {
+  state.currentLevel = level;
+  state.cleared = false;
+  state.cellPath = [];
+  state.isDrawing = false;
+
+  const diff = state.currentDifficulty;
+  const cfg = state.themeConfig[diff];
+  const gridSize = state.gridSizes[diff][level - 1];
+
+  const seedMap = { easy: 101, medium: 241, hard: 401 };
+  const seed = seedMap[diff] + level * 37;
+
+  state.maze = generateMaze(gridSize, gridSize, seed);
+
+  document.getElementById('gameLevelInfo').textContent = `第 ${level} 关`;
+  document.getElementById('gameMascot').textContent = cfg.character;
+  document.getElementById('gameHint').textContent = `从 ${cfg.character} 划到 ${cfg.target} 就能通关`;
+
+  showScreen('game');
+}
+
+/* ========================================
+   Maze Drawing
+   ======================================== */
+let canvas, ctx;
+let cellSize = 0;
+let wallThick = 0;
+let mazeW = 0, mazeH = 0;
+
+function initAndDrawMaze() {
+  canvas = document.getElementById('mazeCanvas');
+  ctx = canvas.getContext('2d');
+
+  const wrap = canvas.parentElement;
+  const wrapW = wrap.clientWidth - 8;
+  const wrapH = wrap.clientHeight - 8;
+
+  if (!state.maze) return;
+  const { cols, rows } = state.maze;
+
+  cellSize = Math.min(
+    Math.floor(wrapW / cols),
+    Math.floor(wrapH / rows)
+  );
+
+  const minPathW = { easy: 50, medium: 45, hard: 40 }[state.currentDifficulty] || 40;
+  const minCellSize = minPathW + 8;
+  if (cellSize < minCellSize) cellSize = minCellSize;
+
+  mazeW = cellSize * cols;
+  mazeH = cellSize * rows;
+
+  if (mazeW > wrapW || mazeH > wrapH) {
+    const scale = Math.min(wrapW / mazeW, wrapH / mazeH);
+    cellSize = Math.floor(cellSize * scale);
+    mazeW = cellSize * cols;
+    mazeH = cellSize * rows;
+  }
+
+  wallThick = Math.max(4, Math.round(cellSize * 0.12));
+
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = mazeW * dpr;
+  canvas.height = mazeH * dpr;
+  canvas.style.width = mazeW + 'px';
+  canvas.style.height = mazeH + 'px';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  state.cellPath = [];
+  renderMaze();
+}
+
+function renderMaze() {
+  if (!ctx || !state.maze) return;
+  const maze = state.maze;
+  const { grid, cols, rows } = maze;
+  const cfg = state.themeConfig[state.currentDifficulty];
+
+  ctx.clearRect(0, 0, mazeW, mazeH);
+
+  ctx.fillStyle = cfg.pathFill;
+  fillRoundRect(ctx, 0, 0, mazeW, mazeH, 16);
+
+  for (const cell of grid) {
+    const x = cell.c * cellSize;
+    const y = cell.r * cellSize;
+    const inset = wallThick * 0.5;
+    ctx.fillStyle = cfg.path;
+    fillRoundRect(ctx, x + inset, y + inset, cellSize - inset * 2, cellSize - inset * 2, 4);
+  }
+
+  for (const cell of grid) {
+    const x = cell.c * cellSize;
+    const y = cell.r * cellSize;
+    const inset = wallThick * 0.5;
+
+    if (!cell.walls[1] && cell.c < cols - 1) {
+      ctx.fillStyle = cfg.path;
+      ctx.fillRect(x + cellSize - inset, y + inset, inset * 2, cellSize - inset * 2);
+    }
+    if (!cell.walls[2] && cell.r < rows - 1) {
+      ctx.fillStyle = cfg.path;
+      ctx.fillRect(x + inset, y + cellSize - inset, cellSize - inset * 2, inset * 2);
+    }
+  }
+
+  ctx.strokeStyle = cfg.wall;
+  ctx.lineWidth = wallThick;
+  ctx.lineCap = 'round';
+
+  for (const cell of grid) {
+    const x = cell.c * cellSize;
+    const y = cell.r * cellSize;
+
+    if (cell.walls[0]) {
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + cellSize, y);
+      ctx.stroke();
+    }
+    if (cell.walls[1]) {
+      ctx.beginPath();
+      ctx.moveTo(x + cellSize, y);
+      ctx.lineTo(x + cellSize, y + cellSize);
+      ctx.stroke();
+    }
+    if (cell.walls[2]) {
+      ctx.beginPath();
+      ctx.moveTo(x, y + cellSize);
+      ctx.lineTo(x + cellSize, y + cellSize);
+      ctx.stroke();
+    }
+    if (cell.walls[3]) {
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x, y + cellSize);
+      ctx.stroke();
+    }
+  }
+
+  ctx.strokeStyle = cfg.wall;
+  ctx.lineWidth = wallThick + 2;
+  ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.rect(0, 0, mazeW, mazeH);
+  ctx.stroke();
+
+  if (state.cellPath.length > 1) {
+    drawTrail();
+  }
+
+  const emojiSize = Math.floor(cellSize * 0.5);
+  ctx.font = `${emojiSize}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(cfg.character, 0.5 * cellSize, 0.5 * cellSize);
+  ctx.fillText(cfg.target, (cols - 0.5) * cellSize, (rows - 0.5) * cellSize);
+}
+
+function drawTrail() {
+  const cfg = state.themeConfig[state.currentDifficulty];
+  const trailW = Math.max(6, cellSize * 0.3);
+
+  ctx.save();
+  ctx.strokeStyle = 'rgba(61, 48, 41, 0.08)';
+  ctx.lineWidth = trailW + 4;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  drawTrailPath();
+  ctx.stroke();
+
+  ctx.strokeStyle = cfg.accent;
+  ctx.lineWidth = trailW;
+  ctx.globalAlpha = 0.75;
+  drawTrailPath();
+  ctx.stroke();
+
+  ctx.strokeStyle = cfg.accentLight;
+  ctx.lineWidth = trailW * 0.5;
+  ctx.globalAlpha = 0.4;
+  drawTrailPath();
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+function drawTrailPath() {
+  ctx.beginPath();
+  const first = state.cellPath[0];
+  ctx.moveTo((first.c + 0.5) * cellSize, (first.r + 0.5) * cellSize);
+  for (let i = 1; i < state.cellPath.length; i++) {
+    const p = state.cellPath[i];
+    ctx.lineTo((p.c + 0.5) * cellSize, (p.r + 0.5) * cellSize);
+  }
+}
+
+function fillRoundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+  ctx.fill();
+}
+
+/* ========================================
+   Path Drawing / Swipe Interaction
+   ======================================== */
+function getCanvasPos(e) {
+  const rect = canvas.getBoundingClientRect();
+  const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+  const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+  const cssW = parseFloat(canvas.style.width) || canvas.width;
+  const cssH = parseFloat(canvas.style.height) || canvas.height;
+  return {
+    x: (clientX - rect.left) * (cssW / rect.width),
+    y: (clientY - rect.top) * (cssH / rect.height)
+  };
+}
+
+function getCellAt(pos) {
+  const col = Math.floor(pos.x / cellSize);
+  const row = Math.floor(pos.y / cellSize);
+  if (!state.maze || col < 0 || col >= state.maze.cols || row < 0 || row >= state.maze.rows) return null;
+  return { r: row, c: col };
+}
+
+function canMove(fromR, fromC, toR, toC) {
+  if (!state.maze) return false;
+  const { cols, rows, grid } = state.maze;
+  if (fromR < 0 || fromR >= rows || fromC < 0 || fromC >= cols) return false;
+  if (toR < 0 || toR >= rows || toC < 0 || toC >= cols) return false;
+  const dr = toR - fromR;
+  const dc = toC - fromC;
+  if (Math.abs(dr) + Math.abs(dc) !== 1) return false;
+  const fromCell = grid[fromR * cols + fromC];
+  if (dr === -1) return !fromCell.walls[0];
+  if (dc === 1) return !fromCell.walls[1];
+  if (dr === 1) return !fromCell.walls[2];
+  if (dc === -1) return !fromCell.walls[3];
+  return false;
+}
+
+function onDrawStart(e) {
+  e.preventDefault();
+  if (state.cleared || !state.maze) return;
+
+  const pos = getCanvasPos(e);
+  const cell = getCellAt(pos);
+  if (!cell) return;
+
+  if (state.cellPath.length === 0) {
+    if (cell.r === 0 && cell.c === 0) {
+      state.cellPath = [{ r: 0, c: 0 }];
+      state.isDrawing = true;
+      renderMaze();
+    }
+  } else {
+    const last = state.cellPath[state.cellPath.length - 1];
+    if (cell.r === last.r && cell.c === last.c) {
+      state.isDrawing = true;
+    }
+  }
+}
+
+function onDrawMove(e) {
+  e.preventDefault();
+  if (!state.isDrawing || state.cleared || !state.maze) return;
+
+  const pos = getCanvasPos(e);
+  const cell = getCellAt(pos);
+  if (!cell) return;
+
+  const last = state.cellPath[state.cellPath.length - 1];
+
+  if (cell.r === last.r && cell.c === last.c) return;
+
+  if (state.cellPath.length >= 2) {
+    const prev = state.cellPath[state.cellPath.length - 2];
+    if (cell.r === prev.r && cell.c === prev.c) {
+      state.cellPath.pop();
+      renderMaze();
+      return;
+    }
+  }
+
+  if (!canMove(last.r, last.c, cell.r, cell.c)) return;
+
+  if (state.cellPath.some(p => p.r === cell.r && p.c === cell.c)) return;
+
+  state.cellPath.push({ r: cell.r, c: cell.c });
+  renderMaze();
+
+  checkVictory();
+}
+
+function onDrawEnd(e) {
+  e.preventDefault();
+  state.isDrawing = false;
+}
+
+async function checkVictory() {
+  if (!state.maze) return;
+  const { rows, cols } = state.maze;
+  const last = state.cellPath[state.cellPath.length - 1];
+  if (last.r === rows - 1 && last.c === cols - 1) {
+    state.cleared = true;
+    state.isDrawing = false;
+    await addClear(state.currentDifficulty, state.currentLevel);
+
+    setTimeout(() => showVictory(), 500);
+  }
+}
+
+async function showVictory() {
+  const cfg = state.themeConfig[state.currentDifficulty];
+  document.getElementById('victoryMascot').textContent = cfg.character;
+  const clears = await getClears(state.currentDifficulty, state.currentLevel);
+  document.getElementById('victoryClears').textContent = clears;
+
+  const btnNext = document.getElementById('btnNextLevel');
+  if (state.currentLevel >= 5) {
+    btnNext.textContent = '回到选择';
+    btnNext.onclick = () => showScreen('level-select');
+  } else {
+    btnNext.textContent = '下一关';
+    btnNext.onclick = () => nextLevel();
+  }
+
+  showScreen('victory');
+}
+
+function nextLevel() {
+  if (state.currentLevel < 5) {
+    startLevel(state.currentLevel + 1);
+  } else {
+    showScreen('level-select');
+  }
+}
+
+function replayLevel() {
+  startLevel(state.currentLevel);
+}
+
+function resetMaze() {
+  if (state.maze) {
+    state.cellPath = [];
+    state.cleared = false;
+    state.isDrawing = false;
+    renderMaze();
+  }
+}
+
+/* ========================================
+   Confetti Animation
+   ======================================== */
+let confettiParticles = [];
+let confettiAnimId = null;
+
+function startConfetti() {
+  const cvs = document.getElementById('confettiCanvas');
+  const cctx = cvs.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const w = cvs.parentElement.clientWidth;
+  const h = cvs.parentElement.clientHeight;
+  cvs.width = w * dpr;
+  cvs.height = h * dpr;
+  cvs.style.width = w + 'px';
+  cvs.style.height = h + 'px';
+  cctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  const cfg = state.themeConfig[state.currentDifficulty];
+  const colors = [cfg.primary, cfg.accent, cfg.accentLight, cfg.primaryLight, '#FFD166', '#F28B82', '#5BB8F5', '#A8DCAA', '#FFB87A'];
+
+  confettiParticles = [];
+  for (let i = 0; i < 50; i++) {
+    confettiParticles.push({
+      x: Math.random() * w,
+      y: -20 - Math.random() * h * 0.6,
+      size: 5 + Math.random() * 7,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      vx: (Math.random() - 0.5) * 4,
+      vy: 2.5 + Math.random() * 3.5,
+      rotation: Math.random() * 360,
+      rotSpeed: (Math.random() - 0.5) * 12,
+      shape: ['circle', 'star', 'heart'][Math.floor(Math.random() * 3)],
+      opacity: 0.85 + Math.random() * 0.15,
+      delay: Math.random() * 0.3
+    });
+  }
+
+  if (confettiAnimId) cancelAnimationFrame(confettiAnimId);
+
+  let startTime = null;
+
+  function animate(ts) {
+    if (!startTime) startTime = ts;
+    const elapsed = (ts - startTime) / 1000;
+
+    cctx.clearRect(0, 0, w, h);
+    let alive = false;
+
+    for (const p of confettiParticles) {
+      if (elapsed < p.delay) { alive = true; continue; }
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.06;
+      p.vx *= 0.99;
+      p.rotation += p.rotSpeed;
+      if (elapsed > 2) p.opacity -= 0.008;
+      if (p.opacity <= 0) p.opacity = 0;
+
+      if (p.y < h + 60 && p.opacity > 0) {
+        alive = true;
+        cctx.save();
+        cctx.translate(p.x, p.y);
+        cctx.rotate(p.rotation * Math.PI / 180);
+        cctx.globalAlpha = p.opacity;
+        cctx.fillStyle = p.color;
+
+        if (p.shape === 'circle') {
+          cctx.beginPath();
+          cctx.arc(0, 0, p.size / 2, 0, Math.PI * 2);
+          cctx.fill();
+        } else if (p.shape === 'star') {
+          drawStar(cctx, 0, 0, 5, p.size / 2, p.size / 4);
+        } else {
+          drawHeart(cctx, 0, 0, p.size * 0.6);
+        }
+
+        cctx.restore();
+      }
+    }
+
+    if (alive) {
+      confettiAnimId = requestAnimationFrame(animate);
+    }
+  }
+
+  confettiAnimId = requestAnimationFrame(animate);
+}
+
+function drawStar(ctx, cx, cy, spikes, outerR, innerR) {
+  let rot = -Math.PI / 2;
+  const step = Math.PI / spikes;
+  ctx.beginPath();
+  for (let i = 0; i < spikes; i++) {
+    ctx.lineTo(cx + Math.cos(rot) * outerR, cy + Math.sin(rot) * outerR);
+    rot += step;
+    ctx.lineTo(cx + Math.cos(rot) * innerR, cy + Math.sin(rot) * innerR);
+    rot += step;
+  }
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawHeart(ctx, cx, cy, size) {
+  ctx.beginPath();
+  const s = size * 0.5;
+  ctx.moveTo(cx, cy + s * 0.4);
+  ctx.bezierCurveTo(cx - s, cy - s * 0.3, cx - s * 0.5, cy - s, cx, cy - s * 0.3);
+  ctx.bezierCurveTo(cx + s * 0.5, cy - s, cx + s, cy - s * 0.3, cx, cy + s * 0.4);
+  ctx.closePath();
+  ctx.fill();
+}
+
+/* ========================================
+   Event Listeners
+   ======================================== */
+function initEvents() {
+  const cvs = document.getElementById('mazeCanvas');
+
+  cvs.addEventListener('touchstart', onDrawStart, { passive: false });
+  cvs.addEventListener('touchmove', onDrawMove, { passive: false });
+  cvs.addEventListener('touchend', onDrawEnd, { passive: false });
+  cvs.addEventListener('touchcancel', onDrawEnd, { passive: false });
+
+  cvs.addEventListener('mousedown', onDrawStart);
+  cvs.addEventListener('mousemove', onDrawMove);
+  cvs.addEventListener('mouseup', onDrawEnd);
+  cvs.addEventListener('mouseleave', onDrawEnd);
+
+  // Enter key on login form
+  document.getElementById('loginPassword').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') handleLogin();
+  });
+  document.getElementById('loginUsername').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('loginPassword').focus();
+  });
+
+  // Resize
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      if (document.getElementById('game').classList.contains('active') && state.maze) {
+        initAndDrawMaze();
+      }
+    }, 200);
+  });
+
+  // Keyboard support for cards
+  document.addEventListener('keydown', e => {
+    if (e.target.classList && e.target.classList.contains('difficulty-card')) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        e.target.click();
+      }
+    }
+  });
+}
+
+/* ========================================
+   Init
+   ======================================== */
+document.addEventListener('DOMContentLoaded', () => {
+  const hasSupabase = initSupabase();
+
+  if (!hasSupabase) {
+    document.getElementById('overviewTitle').textContent = '冒险记录 (本地)';
+  }
+
+  // Check if user is already logged in
+  const savedUser = localStorage.getItem('maze_current_user');
+  if (savedUser) {
+    try {
+      state.currentUser = JSON.parse(savedUser);
+      if (state.currentUser) {
+        document.getElementById('splashUserName').textContent = state.currentUser.username;
+        document.getElementById('homeUserName').textContent = state.currentUser.username;
+        document.getElementById('homeUserInitial').textContent = state.currentUser.username.charAt(0);
+        showScreen('splash');
+        initEvents();
+        return;
+      }
+    } catch (e) {
+      localStorage.removeItem('maze_current_user');
+    }
+  }
+
+  // Show login screen by default
+  showScreen('login-screen');
+  initEvents();
+});
+</script>
+
+</body>
+</html>
