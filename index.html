@@ -1081,11 +1081,13 @@ function initSupabase() {
     return false;
   }
   try {
-    if (!window.supabase || typeof window.supabase.createClient !== 'function') {
+    // UMD build: window.supabase 本身就是 createClient 函数，不是 .createClient 方法
+    const createClient = typeof window.supabase === 'function' ? window.supabase : (window.supabase && window.supabase.createClient);
+    if (!createClient) {
       console.error('[迷宫大冒险] Supabase SDK 未加载，回退到本地模式。');
       return false;
     }
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
     console.log('[迷宫大冒险] Supabase 连接成功');
     return true;
   } catch (e) {
