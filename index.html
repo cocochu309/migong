@@ -918,6 +918,7 @@ html, body {
         <div class="login-toggle">
           还没有账号？<button id="btnToggleMode" onclick="toggleLoginMode()">注册新账号</button>
         </div>
+        <div id="loginStatus" style="text-align:center;font-size:12px;color:var(--color-text-muted);margin-top:var(--space-xs);"></div>
       </div>
     </div>
   </section>
@@ -1075,12 +1076,23 @@ let supabase = null;
 
 function initSupabase() {
   if (SUPABASE_URL === 'YOUR_SUPABASE_URL') {
-    console.warn('[迷宫大冒险] Supabase 未配置。请在 index.html 中填入 SUPABASE_URL 和 SUPABASE_KEY。');
-    console.warn('[迷宫大冒险] 当前回退到本地模式（进度仅保存在本设备）。');
+    console.warn('[迷宫大冒险] Supabase 未配置。');
+    console.warn('[迷宫大冒险] 回退到本地模式。');
     return false;
   }
-  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-  return true;
+  try {
+    if (!window.supabase || typeof window.supabase.createClient !== 'function') {
+      console.error('[迷宫大冒险] Supabase SDK 未加载，回退到本地模式。');
+      return false;
+    }
+    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    console.log('[迷宫大冒险] Supabase 连接成功');
+    return true;
+  } catch (e) {
+    console.error('[迷宫大冒险] Supabase 初始化失败:', e.message);
+    console.warn('[迷宫大冒险] 回退到本地模式。');
+    return false;
+  }
 }
 
 /* ========================================
@@ -2094,6 +2106,12 @@ function initEvents() {
    ======================================== */
 document.addEventListener('DOMContentLoaded', () => {
   const hasSupabase = initSupabase();
+
+  // 显示连接状态
+  const statusEl = document.getElementById('loginStatus');
+  if (statusEl) {
+    statusEl.textContent = hasSupabase ? '🟢 云端已连接' : '🟡 本地模式（进度仅存本设备）';
+  }
 
   if (!hasSupabase) {
     document.getElementById('overviewTitle').textContent = '冒险记录 (本地)';
