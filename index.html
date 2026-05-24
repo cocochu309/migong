@@ -1073,7 +1073,7 @@ html, body {
 const SUPABASE_URL = 'https://fvmgqrupefhtkatqdsde.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_Wwg3W6_Fm91sGHEgEAKOUw_evLHbALg';
 
-let supabase = null;
+let supabaseClient = null;
 
 function initSupabase() {
   if (window.location.protocol === 'file:') {
@@ -1092,7 +1092,7 @@ function initSupabase() {
       console.error('[迷宫大冒险] Supabase SDK 未加载，回退到本地模式。');
       return false;
     }
-    supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+    supabaseClient = createClient(SUPABASE_URL, SUPABASE_KEY);
     console.log('[迷宫大冒险] Supabase 连接成功');
     return true;
   } catch (e) {
@@ -1198,7 +1198,7 @@ async function handleLogin() {
   setBtnLoading('btnLogin', true);
 
   try {
-    if (!supabase) {
+    if (!supabaseClient) {
       // Fallback: 本地模式
       await localAuth(username, password);
       return;
@@ -1208,7 +1208,7 @@ async function handleLogin() {
 
     if (state.loginMode === 'register') {
       // 检查昵称是否已存在
-      const { data: existing } = await supabase
+      const { data: existing } = await supabaseClient
         .from('users')
         .select('id')
         .eq('username', username)
@@ -1221,7 +1221,7 @@ async function handleLogin() {
         return;
       }
 
-      const { data: newUser, error } = await supabase
+      const { data: newUser, error } = await supabaseClient
         .from('users')
         .insert({ username, password_hash: pwHash })
         .select('id, username')
@@ -1238,7 +1238,7 @@ async function handleLogin() {
       setCurrentUser(newUser);
     } else {
       // 登录
-      const { data: user, error } = await supabase
+      const { data: user, error } = await supabaseClient
         .from('users')
         .select('id, username')
         .eq('username', username)
@@ -1259,7 +1259,7 @@ async function handleLogin() {
         return;
       }
 
-      const { data: matchedUser, error: pwError } = await supabase
+      const { data: matchedUser, error: pwError } = await supabaseClient
         .from('users')
         .select('id, username')
         .eq('id', user.id)
@@ -1419,7 +1419,7 @@ async function getClears(diff, level) {
   const cacheKey = `${diff}_${level}`;
   if (state.clearsCache[cacheKey] !== undefined) return state.clearsCache[cacheKey];
 
-  if (!supabase || state.currentUser.local) {
+  if (!supabaseClient || state.currentUser.local) {
     // localStorage fallback
     const key = userPrefix() + storageKey(diff, level);
     const val = parseInt(localStorage.getItem(key) || '0', 10);
@@ -1428,7 +1428,7 @@ async function getClears(diff, level) {
   }
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseClient
       .from('progress')
       .select('clear_count')
       .eq('user_id', state.currentUser.id)
@@ -1453,7 +1453,7 @@ async function addClear(diff, level) {
   const newCount = current + 1;
   state.clearsCache[cacheKey] = newCount;
 
-  if (!supabase || state.currentUser.local) {
+  if (!supabaseClient || state.currentUser.local) {
     const key = userPrefix() + storageKey(diff, level);
     localStorage.setItem(key, newCount);
     return;
@@ -1461,7 +1461,7 @@ async function addClear(diff, level) {
 
   try {
     // Upsert: try update first, then insert if not exists
-    const { data: existing } = await supabase
+    const { data: existing } = await supabaseClient
       .from('progress')
       .select('id')
       .eq('user_id', state.currentUser.id)
@@ -1470,12 +1470,12 @@ async function addClear(diff, level) {
       .maybeSingle();
 
     if (existing) {
-      await supabase
+      await supabaseClient
         .from('progress')
         .update({ clear_count: newCount, updated_at: new Date().toISOString() })
         .eq('id', existing.id);
     } else {
-      await supabase
+      await supabaseClient
         .from('progress')
         .insert({
           user_id: state.currentUser.id,
@@ -1492,7 +1492,7 @@ async function addClear(diff, level) {
 async function getAllClears() {
   if (!state.currentUser) return {};
 
-  if (!supabase || state.currentUser.local) {
+  if (!supabaseClient || state.currentUser.local) {
     const result = {};
     for (const diff of ['easy', 'medium', 'hard']) {
       for (let i = 1; i <= 5; i++) {
@@ -1504,7 +1504,7 @@ async function getAllClears() {
   }
 
   try {
-    const { data } = await supabase
+    const { data } = await supabaseClient
       .from('progress')
       .select('difficulty, level, clear_count')
       .eq('user_id', state.currentUser.id);
