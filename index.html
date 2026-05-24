@@ -226,6 +226,7 @@ html, body {
   cursor: pointer;
   font-family: var(--font-family-primary);
   text-decoration: underline;
+  padding: var(--space-xs);
 }
 
 /* ========================================
@@ -900,8 +901,8 @@ html, body {
         <circle cx="48" cy="48" r="4.5" fill="white"/>
       </svg>
     </div>
-    <h2 style="font-family:var(--font-family-display);font-size:30px;font-weight:800;margin-bottom:-12px;">迷宫大冒险</h2>
-    <p style="font-size:15px;color:var(--color-text-muted);margin-bottom:var(--space-sm);">输入昵称，开始你的探险</p>
+    <h2 id="loginTitle" style="font-family:var(--font-family-display);font-size:30px;font-weight:800;margin-bottom:-12px;">迷宫大冒险</h2>
+    <p id="loginSubtitle" style="font-size:15px;color:var(--color-text-muted);margin-bottom:var(--space-sm);">输入昵称，开始你的探险</p>
 
     <div class="login-form">
       <div class="login-input-group">
@@ -914,9 +915,9 @@ html, body {
       </div>
       <div class="login-error" id="loginError"></div>
       <div class="login-buttons">
-        <button class="btn-primary" id="btnLogin" onclick="handleLogin()">开始冒险</button>
+        <button class="btn-primary" id="btnLogin" type="button" onclick="handleLogin()">开始冒险</button>
         <div class="login-toggle">
-          还没有账号？<button id="btnToggleMode" onclick="toggleLoginMode()">注册新账号</button>
+          <button id="btnToggleMode" type="button" onclick="toggleLoginMode()" aria-label="注册新账号">还没有账号？注册新账号</button>
         </div>
         <div id="loginStatus" style="text-align:center;font-size:12px;color:var(--color-text-muted);margin-top:var(--space-xs);"></div>
       </div>
@@ -1075,6 +1076,10 @@ const SUPABASE_KEY = 'sb_publishable_Wwg3W6_Fm91sGHEgEAKOUw_evLHbALg';
 let supabase = null;
 
 function initSupabase() {
+  if (window.location.protocol === 'file:') {
+    console.warn('[迷宫大冒险] 当前通过本地文件打开，使用本地模式。');
+    return false;
+  }
   if (SUPABASE_URL === 'YOUR_SUPABASE_URL') {
     console.warn('[迷宫大冒险] Supabase 未配置。');
     console.warn('[迷宫大冒险] 回退到本地模式。');
@@ -1147,12 +1152,29 @@ const state = {
    Auth — Password Hashing (SHA-256)
    ======================================== */
 async function hashPassword(password) {
+  if (!window.crypto || !window.crypto.subtle) {
+    return fallbackHash(password);
+  }
   const encoder = new TextEncoder();
   const data = encoder.encode(password + 'maze_salt_2024');
   const hash = await crypto.subtle.digest('SHA-256', data);
   return Array.from(new Uint8Array(hash))
     .map(b => b.toString(16).padStart(2, '0'))
     .join('');
+}
+
+function fallbackHash(password) {
+  const text = password + 'maze_salt_2024';
+  let h1 = 0xdeadbeef;
+  let h2 = 0x41c6ce57;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return ((h2 >>> 0).toString(16).padStart(8, '0') + (h1 >>> 0).toString(16).padStart(8, '0')).repeat(4);
 }
 
 /* ========================================
@@ -1178,7 +1200,7 @@ async function handleLogin() {
   try {
     if (!supabase) {
       // Fallback: 本地模式
-      localAuth(username, password);
+      await localAuth(username, password);
       return;
     }
 
@@ -1206,6 +1228,7 @@ async function handleLogin() {
         .single();
 
       if (error) {
+        console.error('Register error:', error);
         errorEl.textContent = '注册失败，请稍后再试';
         authInProgress = false;
         setBtnLoading('btnLogin', false);
@@ -1219,17 +1242,46 @@ async function handleLogin() {
         .from('users')
         .select('id, username')
         .eq('username', username)
-        .eq('password_hash', pwHash)
         .maybeSingle();
 
-      if (!user) {
-        errorEl.textContent = '昵称或密码不对哦，再试试';
+      if (error) {
+        console.error('Login lookup error:', error);
+        errorEl.textContent = '登录失败，请稍后再试';
         authInProgress = false;
         setBtnLoading('btnLogin', false);
         return;
       }
 
-      setCurrentUser(user);
+      if (!user) {
+        errorEl.textContent = '这个昵称还没有注册，请先注册新账号';
+        authInProgress = false;
+        setBtnLoading('btnLogin', false);
+        return;
+      }
+
+      const { data: matchedUser, error: pwError } = await supabase
+        .from('users')
+        .select('id, username')
+        .eq('id', user.id)
+        .eq('password_hash', pwHash)
+        .maybeSingle();
+
+      if (pwError) {
+        console.error('Password check error:', pwError);
+        errorEl.textContent = '登录失败，请稍后再试';
+        authInProgress = false;
+        setBtnLoading('btnLogin', false);
+        return;
+      }
+
+      if (!matchedUser) {
+        errorEl.textContent = '密码不对哦，再试试';
+        authInProgress = false;
+        setBtnLoading('btnLogin', false);
+        return;
+      }
+
+      setCurrentUser(matchedUser);
     }
   } catch (e) {
     console.error('Auth error:', e);
@@ -1239,9 +1291,9 @@ async function handleLogin() {
   }
 }
 
-function localAuth(username, password) {
+async function localAuth(username, password) {
   // 本地模式：存 localStorage
-  const pwHash = username + '_' + password.length + '_local';
+  const pwHash = await hashPassword(password);
   const localUsers = JSON.parse(localStorage.getItem('maze_local_users') || '{}');
 
   if (state.loginMode === 'register') {
@@ -1255,11 +1307,22 @@ function localAuth(username, password) {
     localStorage.setItem('maze_local_users', JSON.stringify(localUsers));
   } else {
     const u = localUsers[username];
-    if (!u || u.password !== pwHash) {
-      document.getElementById('loginError').textContent = '昵称或密码不对哦';
+    if (!u) {
+      document.getElementById('loginError').textContent = '这个昵称还没有注册，请先注册新账号';
       authInProgress = false;
       setBtnLoading('btnLogin', false);
       return;
+    }
+    const legacyHash = username + '_' + password.length + '_local';
+    if (u.password !== pwHash && u.password !== legacyHash) {
+      document.getElementById('loginError').textContent = '密码不对哦，再试试';
+      authInProgress = false;
+      setBtnLoading('btnLogin', false);
+      return;
+    }
+    if (u.password === legacyHash) {
+      u.password = pwHash;
+      localStorage.setItem('maze_local_users', JSON.stringify(localUsers));
     }
   }
 
@@ -1295,16 +1358,29 @@ function logout() {
 }
 
 function toggleLoginMode() {
+  if (authInProgress) return;
   state.loginMode = state.loginMode === 'login' ? 'register' : 'login';
+  updateLoginModeUI();
+}
+
+function updateLoginModeUI() {
+  const title = document.getElementById('loginTitle');
+  const subtitle = document.getElementById('loginSubtitle');
   const btn = document.getElementById('btnLogin');
   const toggleBtn = document.getElementById('btnToggleMode');
 
   if (state.loginMode === 'register') {
+    title.textContent = '注册新账号';
+    subtitle.textContent = '设置昵称和密码，开始你的探险';
     btn.textContent = '注册并开始';
     toggleBtn.textContent = '已有账号？去登录';
+    toggleBtn.setAttribute('aria-label', '已有账号？去登录');
   } else {
+    title.textContent = '迷宫大冒险';
+    subtitle.textContent = '输入昵称，开始你的探险';
     btn.textContent = '开始冒险';
     toggleBtn.textContent = '还没有账号？注册新账号';
+    toggleBtn.setAttribute('aria-label', '注册新账号');
   }
   document.getElementById('loginError').textContent = '';
 }
@@ -2062,6 +2138,8 @@ function drawHeart(ctx, cx, cy, size) {
    ======================================== */
 function initEvents() {
   const cvs = document.getElementById('mazeCanvas');
+  document.getElementById('btnLogin').onclick = handleLogin;
+  document.getElementById('btnToggleMode').onclick = toggleLoginMode;
 
   cvs.addEventListener('touchstart', onDrawStart, { passive: false });
   cvs.addEventListener('touchmove', onDrawMove, { passive: false });
@@ -2112,7 +2190,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // 显示连接状态
   const statusEl = document.getElementById('loginStatus');
   if (statusEl) {
-    statusEl.textContent = hasSupabase ? '🟢 云端已连接' : '🟡 本地模式（进度仅存本设备）';
+    statusEl.textContent = hasSupabase ? '云端已连接' : '本地模式（进度仅存本设备）';
   }
 
   if (!hasSupabase) {
